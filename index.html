@@ -3,20 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>連點大對決 - 玩家 VS 電腦</title>
+    <title>連點大對決 - 關卡挑戰版</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Canvas Confetti for Victory Celebration -->
+    <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Noto+Sans+TC:wght@500;700;900&display=swap');
         
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
             touch-action: manipulation;
+            transition: background 0.5s ease;
+        }
+
+        /* 預設主題 (關卡 1 & 2) */
+        .theme-normal {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+        }
+
+        /* 第三關魔王專屬暗黑紅紫主題 */
+        .theme-boss {
+            background: linear-gradient(135deg, #180507 0%, #31081f 50%, #1a0003 100%);
         }
 
         .font-game {
@@ -25,7 +35,7 @@
 
         /* 點擊按鈕脈衝動畫 */
         .click-btn {
-            transition: transform 0.05s ease, box-shadow 0.05s ease;
+            transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.3s ease;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -53,7 +63,7 @@
             text-shadow: 0 2px 8px rgba(0,0,0,0.8);
         }
 
-        /* 進度條光澤動畫 */
+        /* 進度條光澤 */
         .progress-glow {
             box-shadow: 0 0 15px currentColor;
         }
@@ -73,25 +83,47 @@
                 opacity: 0;
             }
         }
+
+        /* 魔王狂暴震動特效 */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-4px, 4px); }
+            40% { transform: translate(-4px, -4px); }
+            60% { transform: translate(4px, 4px); }
+            80% { transform: translate(4px, -4px); }
+        }
+        .boss-frenzy-shake {
+            animation: shake 0.15s ease-in-out infinite;
+        }
     </style>
 </head>
-<body class="min-h-screen text-white flex flex-col items-center justify-between p-4 overflow-x-hidden">
+<body id="game-body" class="theme-normal min-h-screen text-white flex flex-col items-center justify-between p-4 overflow-x-hidden">
 
     <!-- 頂部標題區 -->
     <header class="w-full max-w-xl text-center my-2">
-        <h1 class="text-3xl md:text-4xl font-black font-game tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 drop-shadow">
+        <h1 id="main-title" class="text-3xl md:text-4xl font-black font-game tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 drop-shadow">
             ⚡ 30秒連點大對決 ⚡
         </h1>
-        <p class="text-slate-300 text-xs md:text-sm mt-1">挑戰極速手速！你能擊敗每秒 5 下的電腦 AI 嗎？</p>
+        <p id="level-subtitle" class="text-slate-300 text-xs md:text-sm mt-1">突破三重關卡，挑戰極限 AI 魔王！</p>
     </header>
 
     <!-- 主要遊戲內容區 -->
-    <main class="w-full max-w-xl bg-slate-900/80 backdrop-blur-md rounded-3xl p-4 md:p-6 shadow-2xl border border-slate-700/50 flex flex-col gap-5 my-auto">
+    <main class="w-full max-w-xl bg-slate-900/80 backdrop-blur-md rounded-3xl p-4 md:p-6 shadow-2xl border border-slate-700/50 flex flex-col gap-5 my-auto relative">
+
+        <!-- 關卡標籤與狂暴狀態通知 -->
+        <div class="flex justify-between items-center">
+            <span id="level-badge" class="px-4 py-1.5 rounded-xl text-xs md:text-sm font-black font-game bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group"></i> 關卡 1-1：入門挑戰
+            </span>
+            <button id="open-select-btn" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-600 font-bold text-slate-300 transition-all flex items-center gap-1.5">
+                <i class="fa-solid fa-map-location-dot"></i> 切換關卡
+            </button>
+        </div>
 
         <!-- 倒數計時與狀態列 -->
         <div class="flex justify-between items-center bg-slate-800/90 rounded-2xl p-4 border border-slate-700">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 text-2xl">
+                <div id="timer-icon-bg" class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 text-2xl">
                     <i class="fa-solid fa-stopwatch"></i>
                 </div>
                 <div>
@@ -110,7 +142,7 @@
         </div>
 
         <!-- 雙方對決進度條 -->
-        <div class="space-y-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+        <div class="space-y-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 relative overflow-hidden">
             
             <!-- 玩家進度 -->
             <div>
@@ -131,8 +163,9 @@
             <!-- 電腦 AI 進度 -->
             <div>
                 <div class="flex justify-between text-sm font-bold mb-1">
-                    <span class="text-rose-400 flex items-center gap-2">
-                        <i class="fa-solid fa-robot"></i> 電腦 AI <span class="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30">5下/秒</span>
+                    <span id="ai-name-label" class="text-rose-400 flex items-center gap-2">
+                        <i id="ai-icon" class="fa-solid fa-robot"></i> 電腦 AI 
+                        <span id="ai-cps-badge" class="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30">5下/秒</span>
                     </span>
                     <span class="text-rose-300 font-game text-base">
                         <span id="ai-clicks">0</span> 次 
@@ -144,21 +177,23 @@
                 </div>
             </div>
 
+            <!-- 魔王狂暴警告標籤 -->
+            <div id="frenzy-banner" class="hidden absolute inset-0 bg-red-950/90 backdrop-blur-sm border-2 border-red-500 rounded-2xl flex items-center justify-center gap-3 text-red-400 font-black font-game text-lg animate-pulse z-20">
+                <i class="fa-solid fa-skull-crossbones text-2xl"></i> 魔王發動「血怒狂暴」！CPS 大幅飆升！
+            </div>
         </div>
 
         <!-- 連點按鈕區域 -->
-        <div class="relative w-full aspect-[4/3] max-h-[280px] flex items-center justify-center">
+        <div class="relative w-full aspect-[4/3] max-h-[260px] flex items-center justify-center">
             
             <!-- 點擊區域 -->
             <button id="click-btn" class="click-btn relative w-full h-full rounded-3xl bg-gradient-to-b from-cyan-400 via-blue-600 to-indigo-800 p-1 shadow-[0_10px_0_0_#1e1b4b,0_15px_25px_rgba(0,0,0,0.5)] border-4 border-cyan-300/40 flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group">
-                
-                <!-- 內層光暈背景 -->
                 <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-                <div class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/30 text-white text-4xl md:text-5xl shadow-inner group-active:scale-90 transition-transform">
+                <div id="click-btn-icon" class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/30 text-white text-3xl md:text-4xl shadow-inner group-active:scale-90 transition-transform">
                     <i class="fa-solid fa-hand-pointer animate-bounce"></i>
                 </div>
-                <span class="text-xl md:text-2xl font-black font-game text-white tracking-wide drop-shadow-md">
+                <span id="click-btn-text" class="text-xl md:text-2xl font-black font-game text-white tracking-wide drop-shadow-md">
                     瘋狂點擊這裡！
                 </span>
                 <span class="text-xs text-cyan-100/80 font-medium">
@@ -166,11 +201,11 @@
                 </span>
             </button>
             
-            <!-- 開始提示浮層 (遊戲尚未開始時顯示) -->
-            <div id="start-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center z-10 border border-slate-700">
-                <i class="fa-solid fa-bolt text-5xl text-amber-400 mb-3 animate-pulse"></i>
-                <h2 class="text-2xl font-bold font-game mb-1">準備好手速了嗎？</h2>
-                <p class="text-slate-300 text-sm mb-6">點擊下方按鈕開始對決！電腦將以平均每秒 5 下的速度推進！</p>
+            <!-- 開始提示浮層 -->
+            <div id="start-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center z-10 border border-slate-700">
+                <i id="start-icon" class="fa-solid fa-bolt text-5xl text-amber-400 mb-2 animate-pulse"></i>
+                <h2 id="start-title" class="text-2xl font-bold font-game mb-1">準備好手速了嗎？</h2>
+                <p id="start-desc" class="text-slate-300 text-xs md:text-sm mb-5">點擊開始按鈕對決 AI 對手！</p>
                 <button id="start-btn" class="px-8 py-3 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black font-game text-lg rounded-2xl shadow-lg shadow-emerald-500/30 transform active:scale-95 transition-all">
                     🚀 開始比賽！
                 </button>
@@ -179,10 +214,60 @@
 
     </main>
 
-    <!-- 頁尾宣告 -->
+    <!-- 頁尾 -->
     <footer class="text-slate-500 text-xs text-center my-2">
         30 Seconds Speed Clicker Game &copy; HTML5 / TailwindCSS / JS
     </footer>
+
+    <!-- 關卡選擇器 Modal -->
+    <div id="level-select-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center">
+            <h2 class="text-2xl font-black font-game text-white mb-1"><i class="fa-solid fa-map-location-dot text-cyan-400"></i> 選擇對決關卡</h2>
+            <p class="text-xs text-slate-400 mb-5">挑戰更強大的對手，解鎖下一階段！</p>
+
+            <div class="space-y-3 mb-6">
+                <!-- 關卡 1 -->
+                <button onclick="selectLevel(1)" id="lvl-btn-1" class="w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all bg-slate-800/80 border-cyan-500/50 hover:bg-slate-700 text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-black font-game text-lg">1</div>
+                        <div>
+                            <div class="font-black text-sm text-cyan-300">關卡 1-1：入門挑戰</div>
+                            <div class="text-xs text-slate-400">AI 手速：約 5 下/秒 (基礎對決)</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-circle-check text-cyan-400 text-xl"></i>
+                </button>
+
+                <!-- 關卡 2 -->
+                <button onclick="selectLevel(2)" id="lvl-btn-2" class="w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all bg-slate-800/50 border-slate-700 text-slate-500 text-left cursor-not-allowed">
+                    <div class="flex items-center gap-3">
+                        <div id="lvl-icon-2" class="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center text-slate-400 font-black font-game text-lg">2</div>
+                        <div>
+                            <div id="lvl-title-2" class="font-black text-sm">關卡 1-2：高手對決</div>
+                            <div class="text-xs opacity-75">AI 手速：約 9 下/秒 (中等考驗)</div>
+                        </div>
+                    </div>
+                    <i id="lvl-status-2" class="fa-solid fa-lock text-slate-500 text-xl"></i>
+                </button>
+
+                <!-- 關卡 3 -->
+                <button onclick="selectLevel(3)" id="lvl-btn-3" class="w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all bg-slate-800/50 border-slate-700 text-slate-500 text-left cursor-not-allowed">
+                    <div class="flex items-center gap-3">
+                        <div id="lvl-icon-3" class="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center text-slate-400 font-black font-game text-lg">3</div>
+                        <div>
+                            <div id="lvl-title-3" class="font-black text-sm">關卡 1-3：極限魔王</div>
+                            <div class="text-xs opacity-75">AI 手速：約 14 下/秒 + 狂暴技能</div>
+                        </div>
+                    </div>
+                    <i id="lvl-status-3" class="fa-solid fa-lock text-slate-500 text-xl"></i>
+                </button>
+            </div>
+
+            <button id="close-select-btn" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl border border-slate-600 transition-all">
+                關閉選單
+            </button>
+        </div>
+    </div>
 
     <!-- 結算彈窗 Modal -->
     <div id="result-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden opacity-0 transition-opacity duration-300">
@@ -194,51 +279,109 @@
             </div>
 
             <h2 id="result-title" class="text-3xl font-black font-game mb-1">勝利！</h2>
-            <p id="result-subtitle" class="text-slate-400 text-sm mb-6">你成功的壓制了電腦對手！</p>
+            <p id="result-subtitle" class="text-slate-400 text-sm mb-4">你成功的壓制了電腦對手！</p>
+
+            <!-- 稱號獲得展示區 -->
+            <div id="title-award-box" class="mb-4 bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-purple-500/20 p-2.5 rounded-xl border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-2">
+                <i class="fa-solid fa-award text-base text-amber-400"></i> 獲得稱號：<span id="awarded-title-name" class="font-game text-sm text-amber-200">速點達人</span>
+            </div>
 
             <!-- 詳細數據對比表 -->
-            <div class="bg-slate-950/70 rounded-2xl p-4 border border-slate-800 space-y-3 mb-6 text-left">
+            <div class="bg-slate-950/70 rounded-2xl p-4 border border-slate-800 space-y-2.5 mb-6 text-left text-sm">
                 <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                    <span class="text-slate-400 text-sm">你的總點擊數</span>
-                    <span id="res-player-clicks" class="text-cyan-400 font-game text-lg">0 次</span>
+                    <span class="text-slate-400">你的總點擊數</span>
+                    <span id="res-player-clicks" class="text-cyan-400 font-game text-base">0 次</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                    <span class="text-slate-400 text-sm">電腦總點擊數</span>
-                    <span id="res-ai-clicks" class="text-rose-400 font-game text-lg">0 次</span>
+                    <span class="text-slate-400">電腦總點擊數</span>
+                    <span id="res-ai-clicks" class="text-rose-400 font-game text-base">0 次</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                    <span class="text-slate-400 text-sm">勝負差距</span>
-                    <span id="res-diff" class="text-amber-400 font-game text-lg">+0 次</span>
+                    <span class="text-slate-400">勝負差距</span>
+                    <span id="res-diff" class="text-amber-400 font-game text-base">+0 次</span>
                 </div>
                 <div class="flex justify-between items-center">
-                    <span class="text-slate-400 text-sm">你的平均手速 (CPS)</span>
-                    <span id="res-cps" class="text-emerald-400 font-game text-lg">0.0 下/秒</span>
+                    <span class="text-slate-400">你的平均手速 (CPS)</span>
+                    <span id="res-cps" class="text-emerald-400 font-game text-base">0.0 下/秒</span>
                 </div>
             </div>
 
-            <!-- 再玩一次按鈕 -->
-            <button id="restart-btn" class="w-full py-3.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black font-game text-lg rounded-2xl shadow-lg shadow-cyan-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
-                <i class="fa-solid fa-rotate-right"></i> 再戰一局！
-            </button>
+            <!-- 操作按鈕組 -->
+            <div class="flex gap-3">
+                <button id="restart-btn" class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-black font-game rounded-2xl border border-slate-600 active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> 再次挑戰
+                </button>
+                <button id="next-level-btn" class="flex-1 py-3.5 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black font-game rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+                    下一關 <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- 遊戲邏輯 JavaScript -->
+    <!-- 遊戲邏輯 -->
     <script>
-        // 遊戲設定
-        const GAME_DURATION = 30.0; // 30 秒
-        const AI_TARGET_CPS = 5.0;  // 電腦每秒平均點擊 5 下
+        // 關卡設定資料
+        const LEVEL_CONFIGS = {
+            1: {
+                name: "關卡 1-1：入門挑戰",
+                subtitle: "挑戰入門 AI，適合暖身手速！",
+                targetCps: 5.0,
+                cpsJitter: 0.5,
+                aiName: "電腦 AI (初級)",
+                aiIcon: "fa-solid fa-robot",
+                theme: "theme-normal",
+                hasFrenzy: false,
+                btnGradient: "from-cyan-400 via-blue-600 to-indigo-800",
+                btnBorder: "border-cyan-300/40",
+                btnText: "瘋狂點擊這裡！"
+            },
+            2: {
+                name: "關卡 1-2：高手對決",
+                subtitle: "手速大幅提升！AI 點擊速度達到每秒 9 下！",
+                targetCps: 9.0,
+                cpsJitter: 0.5,
+                aiName: "進階機甲 AI",
+                aiIcon: "fa-solid fa-microchip",
+                theme: "theme-normal",
+                hasFrenzy: false,
+                btnGradient: "from-amber-400 via-orange-600 to-red-800",
+                btnBorder: "border-amber-300/40",
+                btnText: "全力快速連點！"
+            },
+            3: {
+                name: "關卡 1-3：極限魔王",
+                subtitle: "魔王來襲！14 CPS 高速攻擊＋不定期發動「血怒狂暴」！",
+                targetCps: 14.0,
+                cpsJitter: 1.0,
+                aiName: "【魔王】終極暗黑核心",
+                aiIcon: "fa-solid fa-skull",
+                theme: "theme-boss",
+                hasFrenzy: true,
+                btnGradient: "from-purple-500 via-rose-700 to-red-950",
+                btnBorder: "border-rose-500/60",
+                btnText: "擊碎魔王核心！"
+            }
+        };
+
+        const GAME_DURATION = 30.0; // 30秒
 
         // 遊戲狀態變數
+        let currentLevel = 1;
+        let unlockedLevels = parseInt(localStorage.getItem('unlockedLevel') || '1');
         let timeLeft = GAME_DURATION;
         let playerClicks = 0;
         let aiClicks = 0;
         let isGameRunning = false;
         let gameTimer = null;
         let aiTimer = null;
+        let frenzyTimer = null;
+        let isFrenzyActive = false;
         let startTime = 0;
 
-        // DOM 元素引用
+        // DOM 元素
+        const bodyEl = document.getElementById('game-body');
+        const levelBadge = document.getElementById('level-badge');
+        const levelSubtitle = document.getElementById('level-subtitle');
         const timerEl = document.getElementById('timer');
         const playerClicksEl = document.getElementById('player-clicks');
         const aiClicksEl = document.getElementById('ai-clicks');
@@ -246,32 +389,41 @@
         const aiCpsEl = document.getElementById('ai-cps');
         const playerBar = document.getElementById('player-bar');
         const aiBar = document.getElementById('ai-bar');
+        const aiNameLabel = document.getElementById('ai-name-label');
+        const aiCpsBadge = document.getElementById('ai-cps-badge');
         const clickBtn = document.getElementById('click-btn');
+        const clickBtnText = document.getElementById('click-btn-text');
         const startBtn = document.getElementById('start-btn');
         const restartBtn = document.getElementById('restart-btn');
+        const nextLevelBtn = document.getElementById('next-level-btn');
         const startOverlay = document.getElementById('start-overlay');
+        const startTitle = document.getElementById('start-title');
+        const startDesc = document.getElementById('start-desc');
+        const startIcon = document.getElementById('start-icon');
         const statusBadge = document.getElementById('status-badge');
         const comboRank = document.getElementById('combo-rank');
+        const frenzyBanner = document.getElementById('frenzy-banner');
 
         // Modal 元素
+        const levelSelectModal = document.getElementById('level-select-modal');
+        const openSelectBtn = document.getElementById('open-select-btn');
+        const closeSelectBtn = document.getElementById('close-select-btn');
         const resultModal = document.getElementById('result-modal');
         const modalCard = document.getElementById('modal-card');
         const resultIconContainer = document.getElementById('result-icon-container');
         const resultIcon = document.getElementById('result-icon');
         const resultTitle = document.getElementById('result-title');
         const resultSubtitle = document.getElementById('result-subtitle');
+        const awardedTitleName = document.getElementById('awarded-title-name');
         const resPlayerClicks = document.getElementById('res-player-clicks');
         const resAiClicks = document.getElementById('res-ai-clicks');
         const resDiff = document.getElementById('res-diff');
         const resCps = document.getElementById('res-cps');
 
-        // 音效 (Web Audio API 合成音效，無需外部檔案)
+        // 音效 API
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
         function playSound(freq, type = 'sine', duration = 0.08) {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -283,53 +435,107 @@
                 gain.connect(audioCtx.destination);
                 osc.start();
                 osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                // 忽略聲音無法播放的問題
+            } catch (e) {}
+        }
+
+        // 載入關卡設定 UI
+        function loadLevel(lvl) {
+            currentLevel = lvl;
+            const config = LEVEL_CONFIGS[lvl];
+
+            // 更換背景風格
+            bodyEl.className = `${config.theme} min-h-screen text-white flex flex-col items-center justify-between p-4 overflow-x-hidden`;
+
+            // 更新資訊文案
+            levelBadge.innerHTML = `<i class="fa-solid fa-layer-group"></i> ${config.name}`;
+            levelSubtitle.textContent = config.subtitle;
+
+            aiNameLabel.innerHTML = `<i class="${config.aiIcon}"></i> ${config.aiName}`;
+            aiCpsBadge.textContent = `${config.targetCps}下/秒`;
+
+            startTitle.textContent = config.name;
+            startDesc.textContent = config.subtitle;
+
+            // 關卡 3 魔王視覺升級
+            if (lvl === 3) {
+                startIcon.className = "fa-solid fa-skull text-5xl text-rose-500 mb-2 animate-pulse";
+                clickBtn.className = `click-btn relative w-full h-full rounded-3xl bg-gradient-to-b ${config.btnGradient} p-1 shadow-[0_10px_0_0_#2a0008,0_15px_25px_rgba(0,0,0,0.8)] border-4 ${config.btnBorder} flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group`;
+            } else {
+                startIcon.className = "fa-solid fa-bolt text-5xl text-amber-400 mb-2 animate-pulse";
+                clickBtn.className = `click-btn relative w-full h-full rounded-3xl bg-gradient-to-b ${config.btnGradient} p-1 shadow-[0_10px_0_0_#1e1b4b,0_15px_25px_rgba(0,0,0,0.5)] border-4 ${config.btnBorder} flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group`;
             }
+
+            clickBtnText.textContent = config.btnText;
+
+            resetGameState();
+            updateLevelSelectModalUI();
         }
 
         // 開始遊戲
         function startGame() {
             if (isGameRunning) return;
 
-            // 重置狀態
-            timeLeft = GAME_DURATION;
-            playerClicks = 0;
-            aiClicks = 0;
+            resetGameState();
             isGameRunning = true;
             startTime = Date.now();
 
-            // 更新 UI 初始狀態
-            updateUI();
             startOverlay.classList.add('hidden');
             statusBadge.textContent = '對決進行中！';
             statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse';
 
-            // 啟動倒數計時器 (每 50ms 更新一次時間)
+            // 主計時器
             gameTimer = setInterval(() => {
                 const elapsed = (Date.now() - startTime) / 1000;
                 timeLeft = Math.max(0, GAME_DURATION - elapsed);
-                
                 timerEl.innerHTML = `${timeLeft.toFixed(1)} <span class="text-xs">s</span>`;
                 updateCPS();
+
+                // 第三關狂暴觸發檢查
+                if (LEVEL_CONFIGS[currentLevel].hasFrenzy) {
+                    checkFrenzyTrigger(elapsed);
+                }
 
                 if (timeLeft <= 0) {
                     endGame();
                 }
             }, 50);
 
-            // 啟動 AI 點擊模擬器
+            // 啟動 AI 點擊
             scheduleAIClick();
         }
 
-        // 電腦 AI 點擊邏輯 (每秒平均 5 下，帶微小隨機波動更加真實)
+        // 觸發魔王狂暴技能 (關卡 3 專屬)
+        function checkFrenzyTrigger(elapsed) {
+            // 在 10~13 秒 與 20~23 秒爆發兩次狂暴
+            const inFrenzyWindow1 = elapsed >= 10 && elapsed <= 13;
+            const inFrenzyWindow2 = elapsed >= 21 && elapsed <= 24;
+
+            if ((inFrenzyWindow1 || inFrenzyWindow2) && !isFrenzyActive) {
+                isFrenzyActive = true;
+                frenzyBanner.classList.remove('hidden');
+                bodyEl.classList.add('boss-frenzy-shake');
+                playSound(150, 'sawtooth', 0.5);
+            } else if (!inFrenzyWindow1 && !inFrenzyWindow2 && isFrenzyActive) {
+                isFrenzyActive = false;
+                frenzyBanner.classList.add('hidden');
+                bodyEl.classList.remove('boss-frenzy-shake');
+            }
+        }
+
+        // AI 點擊邏輯
         function scheduleAIClick() {
             if (!isGameRunning) return;
 
-            // 每秒 5 下平均間隔 200ms，加入 ±40ms 隨機波動
-            const baseInterval = 1000 / AI_TARGET_CPS; // 200ms
-            const jitter = (Math.random() - 0.5) * 80; 
-            const nextDelay = Math.max(50, baseInterval + jitter);
+            const config = LEVEL_CONFIGS[currentLevel];
+            // 狂暴時加倍 CPS
+            let activeCps = config.targetCps;
+            if (isFrenzyActive) {
+                activeCps *= 1.4; // 狂暴時提升至 ~20 CPS
+            }
+
+            const baseInterval = 1000 / activeCps;
+            const jitter = (Math.random() - 0.5) * (config.cpsJitter * 40);
+            const nextDelay = Math.max(20, baseInterval + jitter);
 
             aiTimer = setTimeout(() => {
                 if (isGameRunning) {
@@ -345,37 +551,29 @@
             if (!isGameRunning) return;
 
             playerClicks++;
-            playSound(300 + Math.min(playerClicks * 2, 400), 'triangle');
-            
-            // 產生點擊波紋與浮動數字效果
+            playSound(300 + Math.min(playerClicks * 2, 500), 'triangle');
             createClickEffect(e);
-            
             updateUI();
         }
 
-        // 產生視覺點擊效果
+        // 產生點擊特效
         function createClickEffect(e) {
             const rect = clickBtn.getBoundingClientRect();
-            
-            // 計算點擊位置相對座標
-            let x, y;
+            let x = e.clientX ? e.clientX - rect.left : rect.width / 2;
+            let y = e.clientY ? e.clientY - rect.top : rect.height / 2;
+
             if (e.touches && e.touches.length > 0) {
                 x = e.touches[0].clientX - rect.left;
                 y = e.touches[0].clientY - rect.top;
-            } else {
-                x = e.clientX - rect.left;
-                y = e.clientY - rect.top;
             }
 
-            // 浮動數字 (+1)
+            // 浮動數字
             const numEl = document.createElement('div');
             numEl.className = 'click-number text-cyan-300 text-2xl font-black';
             numEl.textContent = '+1';
             numEl.style.left = `${x}px`;
             numEl.style.top = `${y}px`;
             clickBtn.appendChild(numEl);
-
-            // 移除元素動畫結束後
             setTimeout(() => numEl.remove(), 600);
 
             // 水波紋
@@ -386,11 +584,10 @@
             ripple.style.left = `${x - size / 2}px`;
             ripple.style.top = `${y - size / 2}px`;
             clickBtn.appendChild(ripple);
-
             setTimeout(() => ripple.remove(), 400);
         }
 
-        // 計算並更新每秒平均點擊數 (CPS)
+        // 計算與更新 CPS
         function updateCPS() {
             const elapsed = Math.max(0.1, (Date.now() - startTime) / 1000);
             const pCPS = (playerClicks / elapsed).toFixed(1);
@@ -399,12 +596,11 @@
             playerCpsEl.textContent = pCPS;
             aiCpsEl.textContent = aCPS;
 
-            // 根據玩家手速顯示稱號
-            if (pCPS >= 10) {
-                comboRank.textContent = '🔥 超神手速 (GODLIKE!)';
+            if (pCPS >= 12) {
+                comboRank.textContent = '🔥 手速封神 (GODLIKE!)';
                 comboRank.className = 'text-xs font-bold text-amber-400 animate-bounce';
-            } else if (pCPS >= 7) {
-                comboRank.textContent = '⚡ 瘋狂連點 (INSANE)';
+            } else if (pCPS >= 8) {
+                comboRank.textContent = '⚡ 瘋狂連擊 (INSANE)';
                 comboRank.className = 'text-xs font-bold text-pink-400';
             } else if (pCPS >= 5) {
                 comboRank.textContent = '🚀 快速推進 (RAPID)';
@@ -414,13 +610,13 @@
             }
         }
 
-        // 更新介面進度與數據
+        // 更新介面數值與進度條
         function updateUI() {
             playerClicksEl.textContent = playerClicks;
             aiClicksEl.textContent = aiClicks;
 
-            // 計算進度條比例 (以兩者最大值或預估最大值做基準)
-            const maxVal = Math.max(playerClicks, aiClicks, 150); 
+            const targetClicks = LEVEL_CONFIGS[currentLevel].targetCps * GAME_DURATION;
+            const maxVal = Math.max(playerClicks, aiClicks, targetClicks); 
             const playerPercent = Math.min(100, (playerClicks / maxVal) * 100);
             const aiPercent = Math.min(100, (aiClicks / maxVal) * 100);
 
@@ -428,11 +624,15 @@
             aiBar.style.width = `${aiPercent}%`;
         }
 
-        // 結束遊戲並結算
+        // 結束遊戲與結算
         function endGame() {
             isGameRunning = false;
             clearInterval(gameTimer);
             clearTimeout(aiTimer);
+
+            isFrenzyActive = false;
+            frenzyBanner.classList.add('hidden');
+            bodyEl.classList.remove('boss-frenzy-shake');
 
             statusBadge.textContent = '比賽結束！';
             statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-300';
@@ -444,51 +644,120 @@
             resAiClicks.textContent = `${aiClicks} 次`;
             resCps.textContent = `${finalCPS} 下/秒`;
 
+            // 計算獲得稱號
+            let titleAward = "連點新手";
+            if (finalCPS >= 13) titleAward = "⚡ 光速神之手";
+            else if (finalCPS >= 10) titleAward = "🔥 破音速手速王";
+            else if (finalCPS >= 7) titleAward = "🚀 幻影連點高手";
+            else if (finalCPS >= 5) titleAward = "🎯 手速達人";
+            awardedTitleName.textContent = titleAward;
+
             if (diff > 0) {
-                // 玩家獲勝
+                // 勝利：解鎖下一關
+                if (currentLevel < 3 && unlockedLevels < currentLevel + 1) {
+                    unlockedLevels = currentLevel + 1;
+                    localStorage.setItem('unlockedLevel', unlockedLevels.toString());
+                }
+
                 resDiff.textContent = `+${diff} 次`;
-                resDiff.className = 'text-emerald-400 font-game text-lg';
-                resultTitle.textContent = '🎉 你贏了！';
-                resultSubtitle.textContent = `太厲害了！你以 ${diff} 下的優勢壓制了電腦！`;
+                resDiff.className = 'text-emerald-400 font-game text-base';
+                resultTitle.textContent = '🎉 通關成功！';
+                resultSubtitle.textContent = `太強了！你成功以 ${diff} 下壓制了 ${LEVEL_CONFIGS[currentLevel].aiName}！`;
                 resultIconContainer.className = 'w-20 h-20 rounded-2xl mx-auto flex items-center justify-center text-4xl mb-4 shadow-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
                 resultIcon.className = 'fa-solid fa-trophy';
                 playSound(600, 'sine', 0.2);
                 setTimeout(() => playSound(800, 'sine', 0.4), 200);
 
-                // 慶祝煙火動畫
                 try {
-                    confetti({
-                        particleCount: 100,
-                        spread: 70,
-                        origin: { y: 0.6 }
-                    });
+                    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
                 } catch(e){}
 
-            } else if (diff < 0) {
-                // 電腦獲勝
-                resDiff.textContent = `${diff} 次`;
-                resDiff.className = 'text-rose-400 font-game text-lg';
-                resultTitle.textContent = '❌ 殘念敗北！';
-                resultSubtitle.textContent = `電腦以 ${Math.abs(diff)} 下險勝！再試一次挑戰它！`;
-                resultIconContainer.className = 'w-20 h-20 rounded-2xl mx-auto flex items-center justify-center text-4xl mb-4 shadow-lg bg-rose-500/20 text-rose-400 border border-rose-500/30';
-                resultIcon.className = 'fa-solid fa-robot';
-                playSound(200, 'sawtooth', 0.3);
+                // 按鈕配置
+                if (currentLevel < 3) {
+                    nextLevelBtn.classList.remove('hidden');
+                } else {
+                    nextLevelBtn.classList.add('hidden');
+                    resultTitle.textContent = '🏆 全通關！我是連點之王！';
+                }
 
             } else {
-                // 平手
-                resDiff.textContent = '0 次 (平手)';
-                resDiff.className = 'text-amber-400 font-game text-lg';
-                resultTitle.textContent = '🤝 旗鼓相當！';
-                resultSubtitle.textContent = '你的速度與電腦完全一致！真是不可思議！';
-                resultIconContainer.className = 'w-20 h-20 rounded-2xl mx-auto flex items-center justify-center text-4xl mb-4 shadow-lg bg-amber-500/20 text-amber-400 border border-amber-500/30';
-                resultIcon.className = 'fa-solid fa-handshake';
+                // 敗北
+                resDiff.textContent = `${diff} 次`;
+                resDiff.className = 'text-rose-400 font-game text-base';
+                resultTitle.textContent = '❌ 挑戰失敗！';
+                resultSubtitle.textContent = `${LEVEL_CONFIGS[currentLevel].aiName} 的速度超越了你！再試一次吧！`;
+                resultIconContainer.className = 'w-20 h-20 rounded-2xl mx-auto flex items-center justify-center text-4xl mb-4 shadow-lg bg-rose-500/20 text-rose-400 border border-rose-500/30';
+                resultIcon.className = 'fa-solid fa-skull';
+                nextLevelBtn.classList.add('hidden');
+                playSound(200, 'sawtooth', 0.3);
             }
 
-            // 顯示彈窗動畫
             showModal();
         }
 
-        // 顯示結算彈窗
+        // 重置狀態
+        function resetGameState() {
+            clearInterval(gameTimer);
+            clearTimeout(aiTimer);
+            isGameRunning = false;
+            isFrenzyActive = false;
+            frenzyBanner.classList.add('hidden');
+            bodyEl.classList.remove('boss-frenzy-shake');
+
+            playerClicks = 0;
+            aiClicks = 0;
+            timeLeft = GAME_DURATION;
+
+            timerEl.innerHTML = `30.0 <span class="text-xs">s</span>`;
+            playerCpsEl.textContent = '0.0';
+            aiCpsEl.textContent = '0.0';
+            comboRank.textContent = '';
+            statusBadge.textContent = '準備好了嗎？';
+            statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+
+            startOverlay.classList.remove('hidden');
+            updateUI();
+        }
+
+        // 選擇關卡
+        function selectLevel(lvl) {
+            if (lvl > unlockedLevels) return; // 未解鎖
+            loadLevel(lvl);
+            hideLevelSelectModal();
+        }
+
+        // 更新關卡選擇器按鈕 UI (解鎖狀態)
+        function updateLevelSelectModalUI() {
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`lvl-btn-${i}`);
+                if (i <= unlockedLevels) {
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.classList.add('hover:bg-slate-700');
+                    if (i === currentLevel) {
+                        btn.className = "w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all bg-slate-800 border-cyan-400 text-left";
+                    } else {
+                        btn.className = "w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all bg-slate-800/80 border-slate-700 hover:border-slate-500 text-left";
+                    }
+                    
+                    const icon = document.getElementById(`lvl-icon-${i}`);
+                    if (icon) {
+                        icon.className = "w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-black font-game text-lg";
+                    }
+                    const status = document.getElementById(`lvl-status-${i}`);
+                    if (status) {
+                        status.className = "fa-solid fa-circle-check text-cyan-400 text-xl";
+                    }
+                } else {
+                    btn.className = "w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all bg-slate-900/40 border-slate-800 text-slate-600 text-left cursor-not-allowed opacity-60";
+                    const status = document.getElementById(`lvl-status-${i}`);
+                    if (status) {
+                        status.className = "fa-solid fa-lock text-slate-600 text-xl";
+                    }
+                }
+            }
+        }
+
+        // Modal 顯示控制
         function showModal() {
             resultModal.classList.remove('hidden');
             setTimeout(() => {
@@ -497,53 +766,48 @@
                 modalCard.classList.add('scale-100');
             }, 10);
         }
-
-        // 隱藏結算彈窗
         function hideModal() {
             resultModal.classList.add('opacity-0');
             modalCard.classList.remove('scale-100');
             modalCard.classList.add('scale-90');
-            setTimeout(() => {
-                resultModal.classList.add('hidden');
-            }, 300);
+            setTimeout(() => resultModal.classList.add('hidden'), 300);
         }
 
-        // 重置並重新開始
-        function resetGame() {
-            hideModal();
-            startOverlay.classList.remove('hidden');
-            playerClicks = 0;
-            aiClicks = 0;
-            timeLeft = GAME_DURATION;
-            timerEl.innerHTML = `30.0 <span class="text-xs">s</span>`;
-            playerCpsEl.textContent = '0.0';
-            aiCpsEl.textContent = '0.0';
-            comboRank.textContent = '';
-            updateUI();
+        function showLevelSelectModal() {
+            updateLevelSelectModalUI();
+            levelSelectModal.classList.remove('hidden');
+            setTimeout(() => levelSelectModal.classList.remove('opacity-0'), 10);
+        }
+        function hideLevelSelectModal() {
+            levelSelectModal.classList.add('opacity-0');
+            setTimeout(() => levelSelectModal.classList.add('hidden'), 300);
         }
 
-        // 事件監聽綁定
+        // 事件監聽
         startBtn.addEventListener('click', startGame);
-        restartBtn.addEventListener('click', resetGame);
+        restartBtn.addEventListener('click', () => { hideModal(); resetGameState(); });
+        nextLevelBtn.addEventListener('click', () => {
+            hideModal();
+            if (currentLevel < 3) selectLevel(currentLevel + 1);
+        });
 
-        // 防範觸控雙擊縮放問題並支援多點觸控點擊
+        openSelectBtn.addEventListener('click', showLevelSelectModal);
+        closeSelectBtn.addEventListener('click', hideLevelSelectModal);
+
         clickBtn.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             handlePlayerClick(e);
         });
 
-        // 支援鍵盤空白鍵連點
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && isGameRunning) {
                 e.preventDefault();
-                const rect = clickBtn.getBoundingClientRect();
-                const fakeEvent = {
-                    clientX: rect.left + rect.width / 2,
-                    clientY: rect.top + rect.height / 2
-                };
-                handlePlayerClick(fakeEvent);
+                handlePlayerClick({ clientX: null, clientY: null });
             }
         });
+
+        // 初始化預設第一關
+        loadLevel(1);
     </script>
 </body>
 </html>
